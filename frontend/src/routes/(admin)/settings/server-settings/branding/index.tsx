@@ -8,8 +8,6 @@ import { serverSettingsLoader } from '../layout'
 
 const zodSchema = zod$({
 	'server name': z.string().min(1),
-	// 'contact name': z.string().min(1),
-	// 'contact email': z.string().email(),
 	'server description': z.string().min(1),
 })
 
@@ -53,24 +51,6 @@ export default component$(() => {
 				invalid={!!saveAction.value?.fieldErrors?.['server name']}
 				description="How people may refer to your server besides its domain name."
 			/>
-
-			{/* We've decided not to make this configurable (at least for now) and just use the instance admin */}
-			{/* <div class="flex gap-4 mb-9">
-				<TextInput
-					class="flex-1"
-					label="Contact username"
-					name="contact name"
-					invalid={!!saveAction.value?.fieldErrors?.['contact name']}
-					description="How people can reach you on Mastodon."
-				/>
-				<TextInput
-					class="flex-1"
-					label="Contact e-mail"
-					name="contact email"
-					invalid={!!saveAction.value?.fieldErrors?.['contact email']}
-					description="How people can reach you for legal or support inquiries."
-				/>
-			</div> */}
 
 			<TextArea
 				label="Server description"
