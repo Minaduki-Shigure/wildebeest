@@ -4,7 +4,7 @@ import * as errors from 'wildebeest/backend/src/errors'
 import { type Database, getDatabase } from 'wildebeest/backend/src/database'
 
 export const onRequestGet: PagesFunction<Env, any, ContextData> = async ({ env, request }) => {
-	return handleRequestPost(getDatabase(env), request)
+	return handleRequestPost(await getDatabase(env), request)
 }
 
 export async function handleRequestGet(db: Database) {
@@ -19,7 +19,7 @@ export async function handleRequestGet(db: Database) {
 }
 
 export const onRequestPost: PagesFunction<Env, any, ContextData> = async ({ env, request }) => {
-	return handleRequestPost(getDatabase(env), request)
+	return handleRequestPost(await getDatabase(env), request)
 }
 
 export async function handleRequestPost(db: Database, request: Request) {
@@ -29,24 +29,27 @@ export async function handleRequestPost(db: Database, request: Request) {
 		return errors.notAuthorized('Lacking authorization rights to edit server settings')
 	}
 
-	const rule = await request.json<{ id: string; text: string }>()
-
-	const query = `
-		INSERT INTO server_rules (id, text)
-		VALUES (?, ?)
-		ON CONFLICT(id) DO UPDATE SET text=excluded.text;
-	`
-
-	const result = await db
-		.prepare(query)
-		.bind(rule.id || null, rule.text)
-		.run()
+	const rule = await request.json<{ id?: number; text: string }>()
+	const result = await upsertRule(db, rule)
 
 	if (!result.success) {
 		return new Response('SQL error: ' + result.error, { status: 500 })
 	}
 
 	return new Response('', { status: 200 })
+}
+
+export async function upsertRule(db: Database, rule: { id?: number; text: string } | string) {
+	const id = typeof rule === 'string' ? null : rule.id ?? null
+	const text = typeof rule === 'string' ? rule : rule.text
+	return await db
+		.prepare(
+			`INSERT INTO server_rules (id, text)
+		VALUES (?, ?)
+		ON CONFLICT(id) DO UPDATE SET text=excluded.text;`
+		)
+		.bind(id, text)
+		.run()
 }
 
 export async function handleRequestDelete(db: Database, request: Request) {
@@ -56,15 +59,16 @@ export async function handleRequestDelete(db: Database, request: Request) {
 		return errors.notAuthorized('Lacking authorization rights to edit server settings')
 	}
 
-	const rule = await request.json<{ id: string }>()
-
-	const query = 'DELETE FROM server_rules WHERE id=?'
-
-	const result = await db.prepare(query).bind(rule.id).run()
+	const rule = await request.json<{ id: number }>()
+	const result = await deleteRule(db, rule.id)
 
 	if (!result.success) {
 		return new Response('SQL error: ' + result.error, { status: 500 })
 	}
 
 	return new Response('', { status: 200 })
+}
+
+export async function deleteRule(db: Database, ruleId: number) {
+	return await db.prepare('DELETE FROM server_rules WHERE id=?').bind(ruleId).run()
 }
